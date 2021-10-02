@@ -2,5 +2,16 @@
   "name": "server",
   "version": "1.0.0",
   "main": "src/app.js",
-  "private": true
+  "private": true,
+  "scripts": {
+    "dev": "nodemon ./src/app.js",
+    "try" : "echo a && echo b"
+  },
+  "devDependencies": {
+    "express": "^4.17.1",
+    "nodemon": "^2.0.13"
+  },
+  "dependencies": {
+    "dotenv": "^10.0.0"
+  }
 }
