@@ -3,10 +3,32 @@ const Schema = mongoose.Schema;
 
 const userSchema = new Schema({
     name:{
-        type:String,
+        type: String,
         required:true,
-        default:'test',
+    },
+    surname:{
+        type: String,
+        required:true,
+    },
+    email:{
+        type: String,
+        required:true,
+        unique:true,
+    },
+    password:{
+        type: String,
+        required:true,
+    },
+    country:{
+        type: Schema.Types.ObjectId,
+        ref: 'Country',
+        required:true,
+    },
+    lastAccess:{
+        type: Date,
+        required: true,
+        default: new Date(),
     }
-});
+},{timestamps:true});
 
 module.exports = mongoose.model('User',userSchema);
