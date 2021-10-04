@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@lib/payloads';
 import { getUser, logIn, logOut } from '@lib/api';
 
-type UserState = User | null | undefined;
+export type UserState = User | null | undefined;
 
 const UserContext = createContext<
   [UserState, React.Dispatch<React.SetStateAction<UserState>>]

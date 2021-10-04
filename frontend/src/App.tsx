@@ -1,39 +1,41 @@
+import React from 'react';
+import {
+  Box,
+  CircularProgress,
+  Container,
+  CssBaseline,
+  ThemeProvider,
+} from '@mui/material';
+import theme from '@lib/theme';
+import MyAppBar from '@lib/components/MyAppBar';
 import { useUserController } from '@lib/user-state';
-import React, { useState } from 'react';
+import LogIn from '@lib/components/LogIn';
+import Dashboard from '@lib/components/Dashboard';
 
 const App: React.FC = () => {
   const userController = useUserController();
-  const [loading, setLoading] = useState<boolean>(false);
-  const handleLogin = async () => {
-    setLoading(true);
-    try {
-      await userController.logIn('john@example.com', 'password123');
-    } catch (e) {
-      alert(JSON.stringify(e));
-    } finally {
-      setLoading(false);
+
+  const MainView: React.FC = () => {
+    if (userController.current === undefined) {
+      return (
+        <Container>
+          <Box sx={{ display: 'flex', justifyContent: 'center', margin: 3 }}>
+            <CircularProgress />
+          </Box>
+        </Container>
+      );
+    } else if (userController.current === null) {
+      return <LogIn />;
     }
-  };
-  const handleLogout = () => {
-    setLoading(true);
-    void userController.logOut().then(() => setLoading(false));
+    return <Dashboard />;
   };
 
   return (
-    <>
-      <pre>
-        <code>
-          {'User: '}
-          {JSON.stringify(userController.current, null, 2)}
-        </code>
-      </pre>
-      <button disabled={loading} onClick={handleLogin}>
-        Log In
-      </button>
-      <button disabled={loading} onClick={handleLogout}>
-        Log Out
-      </button>
-    </>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <MyAppBar />
+      <MainView />
+    </ThemeProvider>
   );
 };
 
