@@ -9,7 +9,6 @@ const morgan = require('morgan');
 const csrf = require('csurf');
 require('dotenv').config();
 
-
 const apiRouter = require('./routes/api');
 const User = require('./models/user');
 const Country = require('./models/country');
@@ -22,44 +21,71 @@ const mongoURL = `mongodb+srv://${mongoUser}:${mongoPassword}@${mongoCluster}.r1
 
 const app = express();
 
-app.set('port',process.env.PORT || 5000);
+app.set('port', process.env.PORT || 5000);
 
-app.use(express.static(path.join(__dirname,'..','..','frontend','dist')));
-app.use(express.urlencoded({extended:false}));
+app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
 
-
-app.use(morgan('dev'));
-app.use( session({
-    secret: process.env.SECRET_SESSION,
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-        mongoUrl: mongoURL,
-        collectionName: 'sessions',
-        touchAfter: 60,                                                  //Seconds
-        // ttl: 60,                                                      //Seconds
-        autoRemove: 'interval',
-        autoRemoveInterval: 70                                           //Minutes to delete the expired session
+app.use(morgan('short'));
+app.use(
+    session({
+        secret: process.env.SECRET_SESSION,
+        resave: false,
+        saveUninitialized: false,
+        store: MongoStore.create({
+            mongoUrl: mongoURL,
+            collectionName: 'sessions',
+            touchAfter: 60, //Seconds
+            // ttl: 60,                                                      //Seconds
+            autoRemove: 'interval',
+            autoRemoveInterval: 70, //Minutes to delete the expired session
+        }),
+        cookie: { maxAge: 60 * 60 * 1000, httpOnly: true },
     })
-    ,cookie: {maxAge: 60 * 60 * 1000, httpOnly:true}
-}));
+);
 
-app.use( csrf({cookie:true}) );  
-app.use( (req, res, next) => res.cookie('XSRF-TOKEN', req.csrfToken()) );
-
-app.use('/', (req,res,next) => {
-    console.log(req.session);
+app.use(csrf({ cookie: true }));
+app.use((req, res, next) => {
+    res.cookie('XSRF-TOKEN', req.csrfToken());
     next();
 });
 
-app.use('/api', apiRouter);
+app.use(express.static(path.join(__dirname, '..', '..', 'frontend', 'dist')));
 
-app.get('*',(req,res,next) =>{
-    res.sendFile(path.join(__dirname,'..','..','frontend','dist','index.html'));
+app.use( async (req,res,next) => {                                           //*Use Mongoose Methods and update Session req (passport) 
+    if(req.session.user){
+        User.findById(req.session.user._id)
+            .then(user => {
+                if(user) req.user = user;                                   
+                next();
+            })
+            .catch(err => next(err));
+    }
+    else next();
 });
 
-mongoose.connect(mongoURL,{useNewUrlParser:true, useUnifiedTopology:true})
-    .then(async (res) => app.listen(app.get('port')))
+app.use('/', (req, res, next) => {
+    console.log(req.session);
+    console.log(req.user);
+    next();
+});
+    
+app.use('/api', apiRouter);
+
+
+app.get('*', (req, res, next) => {
+    res.sendFile(
+        path.join(__dirname, '..', '..', 'frontend', 'dist', 'index.html')
+    );
+});
+
+app.use((err,req,res,next) => {
+    console.log(err);
+    next();
+})
+
+mongoose
+    .connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(async res => app.listen(app.get('port')))
     .catch(err => console.log(err));
