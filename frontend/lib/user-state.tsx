@@ -19,7 +19,9 @@ export const UserProvider: React.FC = ({ children }) => {
   const userState = useState<UserState>(undefined);
 
   useEffect(() => {
-    void getUser().then((v) => userState[1](v));
+    void getUser()
+      .then((v) => userState[1](v))
+      .catch((e: unknown) => console.error(e));
   }, []);
 
   return (

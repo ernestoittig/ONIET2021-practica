@@ -1,24 +1,53 @@
-import { User, UserPayload } from '@lib/payloads';
+import { ApiResult, User, UserPayload } from '@lib/payloads';
+import Cookies from 'js-cookie';
 
-// TODO: Implementar funciones de API
+const apiHost = import.meta.env.PROD ? window.location.host : 'localhost:5000';
+// FIXME: Make CSRF work
+const getCSRFToken = (): string => Cookies.get('XSRF-TOKEN') ?? '';
 
-export function getUser(): Promise<User | null> {
-  const apiResult: UserPayload = {
-    name: 'John',
-    surname: 'Doe',
-    email: 'example@example.com',
-    country: { countryCode: 'ar', countryName: 'Argentina' },
-    lastAccess: '2021-10-03T20:09:31.773Z',
-  };
-  const transformed: User = { ...apiResult } as unknown as User;
-  transformed.lastAccess = new Date(apiResult.lastAccess);
-  return Promise.resolve(transformed);
+export const normalizeUserObject = (obj: UserPayload): User => {
+  const other = { ...obj } as unknown as User;
+  other.lastAccess = new Date(obj.lastAccess);
+  return other;
+};
+
+const defaultOptions: () => RequestInit = () => ({
+  method: 'POST',
+  headers: {
+    Accepts: 'application/json',
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': getCSRFToken(),
+  },
+  credentials: import.meta.env.PROD
+    ? ('same-origin' as const)
+    : ('include' as const),
+});
+
+export async function getUser(): Promise<User | null> {
+  const result = (await fetch(
+    `http://${apiHost}/api/getUser`,
+    defaultOptions()
+  ).then((v) => v.json())) as ApiResult<UserPayload>;
+  if ('error' in result) throw result.error;
+  return result.data && normalizeUserObject(result.data);
 }
 
-export function logIn(email: string, password: string): Promise<User> {
-  return getUser().then((v) => v!);
+export async function logIn(email: string, password: string): Promise<User> {
+  const result = (await fetch(`http://${apiHost}/api/logIn`, {
+    ...defaultOptions(),
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  }).then((v) => v.json())) as ApiResult<UserPayload>;
+  if ('error' in result) throw result.error;
+  return result.data && normalizeUserObject(result.data);
 }
 
-export function logOut(): Promise<void> {
-  return Promise.resolve();
+export async function logOut(): Promise<void> {
+  const result = (await fetch(
+    `http://${apiHost}/api/logOut`,
+    defaultOptions()
+  ).then((v) => v.json())) as ApiResult<undefined>;
+  if ('error' in result) throw result.error;
 }

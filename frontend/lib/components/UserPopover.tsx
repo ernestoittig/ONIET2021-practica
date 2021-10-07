@@ -1,7 +1,7 @@
 import { UserState } from '@lib/user-state';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import { Avatar, Button, Popover, Stack, Typography } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const UserPopover: React.FC<{
   user: UserState;
@@ -16,9 +16,18 @@ const UserPopover: React.FC<{
     setAnchorEl(e.currentTarget);
   };
 
-  const handleClose = () => {
+  let handleClose = () => {
     setAnchorEl(null);
   };
+
+  useEffect(
+    () => () => {
+      handleClose = () => {
+        return;
+      };
+    },
+    []
+  );
 
   const open = Boolean(anchorEl);
   const id = open ? 'user-popover' : undefined;
