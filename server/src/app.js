@@ -27,7 +27,10 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
 
+app.use(express.static(path.join(__dirname, '..', '..', 'frontend', 'dist')));
+
 app.use(morgan('short'));
+
 app.use(
     session({
         secret: process.env.SECRET_SESSION,
@@ -45,13 +48,29 @@ app.use(
     })
 );
 
+
 app.use(csrf({ cookie: true }));
 app.use((req, res, next) => {
     res.cookie('XSRF-TOKEN', req.csrfToken());
     next();
 });
 
-app.use(express.static(path.join(__dirname, '..', '..', 'frontend', 'dist')));
+app.use (  (req, res, next) => {                                                        //*Refresh cookie-session time
+    if(req.session.user){
+        try {
+            let cookies = req.get('Cookie').split(';');
+            cookies.forEach(cookie => {
+                if(cookie.trim().split('=')[0] == 'connect.sid'){
+                    const valueCookie = cookie.trim().split('=')[1];
+                    res.setHeader('Set-Cookie',`connect.sid=${valueCookie}; httpOnly=true; Max-age=3600; Path=/`/*; secure=true*/);
+                }
+            });
+        } catch (error) {
+            console.log('error(session refresh): ',error);
+        }
+    }
+    next();
+});
 
 app.use( async (req,res,next) => {                                           //*Use Mongoose Methods and update Session req (passport) 
     if(req.session.user){
@@ -64,6 +83,7 @@ app.use( async (req,res,next) => {                                           //*
     }
     else next();
 });
+
 
 app.use('/', (req, res, next) => {
     console.log(req.session);
@@ -83,7 +103,7 @@ app.get('*', (req, res, next) => {
 app.use((err,req,res,next) => {
     console.log(err);
     next();
-})
+});
 
 mongoose
     .connect(mongoURL, { useNewUrlParser: true, useUnifiedTopology: true })

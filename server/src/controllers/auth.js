@@ -16,8 +16,10 @@ exports.postLogIn = async (req,res,next) => {
                                 if(err) res.status(400).json({message: 'error-session'});
                                 else{
                                     await User.findOne({email})
-                                            .then(user => {
+                                            .then(async user => {
+                                                user = await user.populate('country', '-_id')/*.execPopulate()*/.then(user => user);
                                                 user = user.toObject();
+                                                console.log(user);
                                                 delete user.password;
                                                 if(user) res.status(200).json({data:user});
                                                 else res.json({message: 'user-not-found'});
@@ -45,9 +47,11 @@ exports.postLogOut = (req,res,next) => {
 exports.getUser = (req,res,next) => {
     if(!req.session.user) return res.status(200).json({data:null});
     User.findOne({_id: req.session.user._id})
-        .then(user => {
+        .then(async user => {
             if(user){
+                user = await user.populate('country', '-_id')/*.execPopulate()*/.then(user => user);
                 user = user.toObject();
+                console.log(user);
                 delete user.password;
                 res.json({data: user});
             }

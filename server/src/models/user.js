@@ -29,6 +29,6 @@ const userSchema = new Schema({
         required: true,
         default: new Date(),
     }
-});
+},{toJSON:{virtuals:true}});
 
 module.exports = mongoose.model('User',userSchema);
