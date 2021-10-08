@@ -7,11 +7,11 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const morgan = require('morgan');
 const csrf = require('csurf');
+const helmet = require('helmet');
 require('dotenv').config();
 
 const apiRouter = require('./routes/api');
 const User = require('./models/user');
-const Country = require('./models/country');
 
 const mongoUser = process.env.MONGO_USER;
 const mongoPassword = process.env.MONGO_PASSWORD;
@@ -21,62 +21,69 @@ const mongoURL = `mongodb+srv://${mongoUser}:${mongoPassword}@${mongoCluster}.r1
 
 const app = express();
 
+app.use(helmet());
+
 app.set('port', process.env.PORT || 5000);
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
 
-app.use(express.static(path.join(__dirname, '..', '..', 'frontend', 'dist')));
 
 app.use(morgan('short'));
 
 app.use(
     session({
-        secret: process.env.SECRET_SESSION,
-        resave: false,
-        saveUninitialized: false,
-        store: MongoStore.create({
-            mongoUrl: mongoURL,
-            collectionName: 'sessions',
-            touchAfter: 60, //Seconds
-            // ttl: 60,                                                      //Seconds
-            autoRemove: 'interval',
-            autoRemoveInterval: 70, //Minutes to delete the expired session
-        }),
-        cookie: { maxAge: 60 * 60 * 1000, httpOnly: true },
-    })
-);
+            secret: process.env.SECRET_SESSION,
+            resave: false,
+            saveUninitialized: false,
+            store: MongoStore.create({
+                mongoUrl: mongoURL,
+                collectionName: 'sessions',
+                touchAfter: 60, //Seconds
+                // ttl: 60,                                                      //Seconds
+                autoRemove: 'interval',
+                autoRemoveInterval: 70, //Minutes to delete the expired session
+            }),
+            cookie: { maxAge: 60 * 60 * 1000, httpOnly: true },
+        })
+    );
+    
+    
+    app.use(csrf({ cookie: true }));
+    app.use((req, res, next) => {
+        res.cookie('XSRF-TOKEN', req.csrfToken());
+        next();
+    });
 
-
-app.use(csrf({ cookie: true }));
-app.use((req, res, next) => {
-    res.cookie('XSRF-TOKEN', req.csrfToken());
-    next();
-});
-
-app.use (  (req, res, next) => {                                                        //*Refresh cookie-session time
-    if(req.session.user){
-        try {
-            let cookies = req.get('Cookie').split(';');
-            cookies.forEach(cookie => {
-                if(cookie.trim().split('=')[0] == 'connect.sid'){
-                    const valueCookie = cookie.trim().split('=')[1];
-                    res.setHeader('Set-Cookie',`connect.sid=${valueCookie}; httpOnly=true; Max-age=3600; Path=/`/*; secure=true*/);
-                }
+    app.use(express.static(path.join(__dirname, '..', '..', 'frontend', 'dist')));
+    
+    app.use (  (req, res, next) => {                                                        //*Refresh cookie-session time
+        if(req.session.user){
+            try {
+                let cookies = req.get('Cookie').split(';');
+                cookies.forEach(cookie => {
+                    if(cookie.trim().split('=')[0] == 'connect.sid'){
+                        const valueCookie = cookie.trim().split('=')[1];
+                        res.append('Set-Cookie',`connect.sid=${valueCookie}; httpOnly=true; Max-age=3600; Path=/`/*; secure=true*/);
+                    }
             });
         } catch (error) {
             console.log('error(session refresh): ',error);
         }
     }
+    // console.log('res: ', res.getHeaders());
     next();
 });
 
 app.use( async (req,res,next) => {                                           //*Use Mongoose Methods and update Session req (passport) 
     if(req.session.user){
         User.findById(req.session.user._id)
-            .then(user => {
-                if(user) req.user = user;                                   
+            .then(async user => {
+                if(user) {
+                    user = await user.populate('country', '-_id')/*.execPopulate()*/.then(user => user);
+                    req.user = user;
+                }
                 next();
             })
             .catch(err => next(err));
@@ -86,8 +93,9 @@ app.use( async (req,res,next) => {                                           //*
 
 
 app.use('/', (req, res, next) => {
+    // console.log(req._parsedOriginalUrl.pathname, ' ', req.cookies, res.getHeaders()['set-cookie']);
     console.log(req.session);
-    console.log(req.user);
+    // console.log(req.user);
     next();
 });
     
@@ -101,8 +109,8 @@ app.get('*', (req, res, next) => {
 });
 
 app.use((err,req,res,next) => {
-    console.log(err);
-    next();
+    console.log(err); 
+    return res.json({error: err.message});
 });
 
 mongoose
